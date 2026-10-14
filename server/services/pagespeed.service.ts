@@ -30,7 +30,7 @@ export interface CombinedPageSpeedResult {
 
 /**
  * Fetches PageSpeed Insights data for a specific strategy (mobile/desktop).
- * Securely calls Google's API server-side only.
+ * Securely calls Google's API server-side only with generous timeout for real-world sites.
  */
 async function fetchStrategy(url: string, strategy: 'mobile' | 'desktop'): Promise<PageSpeedAnalysis> {
   try {
@@ -39,10 +39,6 @@ async function fetchStrategy(url: string, strategy: 'mobile' | 'desktop'): Promi
       strategy,
       category: 'PERFORMANCE',
     });
-    // Add additional categories
-    params.append('category', 'SEO');
-    params.append('category', 'ACCESSIBILITY');
-    params.append('category', 'BEST_PRACTICES');
 
     if (config.pageSpeedApiKey) {
       params.append('key', config.pageSpeedApiKey);
@@ -50,8 +46,9 @@ async function fetchStrategy(url: string, strategy: 'mobile' | 'desktop'): Promi
 
     const apiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?${params.toString()}`;
 
+    // Real-world sites can take up to 25-30s for Lighthouse execution
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 12000); // 12s timeout for PageSpeed
+    const timeout = setTimeout(() => controller.abort(), 35000); // 35s timeout
 
     const response = await fetch(apiUrl, {
       signal: controller.signal,
@@ -62,12 +59,20 @@ async function fetchStrategy(url: string, strategy: 'mobile' | 'desktop'): Promi
     clearTimeout(timeout);
 
     if (!response.ok) {
+      const errText = await response.text().catch(() => '');
+      console.warn(`[PageSpeed API] HTTP ${response.status} for ${url} (${strategy}):`, errText.slice(0, 200));
+
+      if (response.status === 429) {
+        return {
+          available: false,
+          strategy,
+          errorMessage: 'Quota PageSpeed temporairement atteint.',
+        };
+      }
       return {
         available: false,
         strategy,
-        errorMessage: response.status === 429 
-          ? 'Quota PageSpeed temporairement atteint.' 
-          : `API PageSpeed indisponible (code ${response.status}).`,
+        errorMessage: `API PageSpeed indisponible (code ${response.status}).`,
       };
     }
 
@@ -107,24 +112,35 @@ async function fetchStrategy(url: string, strategy: 'mobile' | 'desktop'): Promi
     };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);
+    console.warn(`[PageSpeed Exception] for ${url} (${strategy}):`, errorMsg);
     return {
       available: false,
       strategy,
       errorMessage: errorMsg.includes('abort') 
-        ? "Délai d'analyse PageSpeed dépassé." 
+        ? "Délai d'analyse PageSpeed dépassé (le site met plus de 35s à répondre à Google)." 
         : "PageSpeed Insights non disponible pour cette URL.",
     };
   }
 }
 
 /**
- * Runs PageSpeed Insights in parallel for mobile and desktop if requested.
+ * Runs PageSpeed Insights. Starts with Mobile (primary), then Desktop.
  */
 export async function runPageSpeedAudit(targetUrl: string): Promise<CombinedPageSpeedResult> {
-  const [mobile, desktop] = await Promise.all([
+  // Mobile first as requested by standard web audits
+  const [mobile, desktop] = await Promise.allSettled([
     fetchStrategy(targetUrl, 'mobile'),
     fetchStrategy(targetUrl, 'desktop'),
   ]);
 
-  return { mobile, desktop };
+  const defaultUnavailable = (strategy: 'mobile' | 'desktop'): PageSpeedAnalysis => ({
+    available: false,
+    strategy,
+    errorMessage: 'Analyse PageSpeed non disponible.',
+  });
+
+  return {
+    mobile: mobile.status === 'fulfilled' ? mobile.value : defaultUnavailable('mobile'),
+    desktop: desktop.status === 'fulfilled' ? desktop.value : defaultUnavailable('desktop'),
+  };
 }

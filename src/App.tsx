@@ -47,6 +47,10 @@ export default function App() {
       setAccessToken(paramToken);
       fetchAudit(paramAuditId, paramToken);
     }
+
+    if (params.get('admin') === 'true' || params.get('leads') === 'true') {
+      setIsAdminOpen(true);
+    }
   }, []);
 
   const fetchAudit = async (id: string, token: string) => {
@@ -207,11 +211,11 @@ export default function App() {
             <span>&bull;</span>
             <button
               onClick={() => setIsAdminOpen(true)}
-              className="text-slate-400 hover:text-slate-700 transition-colors flex items-center gap-1 cursor-pointer"
-              title="Espace gestion Matt Konnect"
+              className="text-slate-300 hover:text-slate-600 transition-colors p-1 cursor-pointer"
+              title="Accès réservé"
+              aria-label="Accès réservé"
             >
-              <Lock className="w-3 h-3" />
-              <span>Gestion prospects</span>
+              <Lock className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>

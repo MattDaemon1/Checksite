@@ -37,8 +37,11 @@ export const config = {
     maxLeadRequests: 15,
   },
 
-  // PageSpeed Insights API (optional)
-  pageSpeedApiKey: process.env.PAGESPEED_API_KEY || '',
+  // PageSpeed Insights API (configured)
+  pageSpeedApiKey: process.env.PAGESPEED_API_KEY || 'AIzaSyAHYtS9HLhTgOEcD7Q8Q3lA-5oHZ2F423s',
+
+  // Admin & Security Key
+  adminSecretKey: process.env.ADMIN_SECRET_KEY || 'MattKonnect2026!',
 
   // Database
   dbPath: process.env.DATABASE_PATH || './checksite.sqlite',

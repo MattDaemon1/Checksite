@@ -65,8 +65,28 @@ settingsRouter.post('/gdpr/delete', (req: Request, res: Response) => {
   });
 });
 
-// Admin Leads Overview
-settingsRouter.get('/admin/leads', (_req: Request, res: Response) => {
+// Admin authentication helper
+function checkAdminAuth(req: Request): boolean {
+  const key = (req.headers['x-admin-key'] as string) || (req.query.admin_key as string) || (req.query.key as string);
+  return Boolean(key && key === config.adminSecretKey);
+}
+
+// Verify Admin Key
+settingsRouter.post('/admin/verify', (req: Request, res: Response) => {
+  const { key } = req.body;
+  if (key && key === config.adminSecretKey) {
+    res.json({ valid: true });
+  } else {
+    res.status(401).json({ valid: false, error: 'Code administrateur incorrect.' });
+  }
+});
+
+// Admin Leads Overview (Protected)
+settingsRouter.get('/admin/leads', (req: Request, res: Response) => {
+  if (!checkAdminAuth(req)) {
+    res.status(401).json({ error: 'Accès réservé. Clé administrateur requise.' });
+    return;
+  }
   const leads = dbOps.getAllLeads(100);
   res.json({
     total: leads.length,
@@ -74,8 +94,12 @@ settingsRouter.get('/admin/leads', (_req: Request, res: Response) => {
   });
 });
 
-// Admin CSV Export
-settingsRouter.get('/admin/leads/export.csv', (_req: Request, res: Response) => {
+// Admin CSV Export (Protected)
+settingsRouter.get('/admin/leads/export.csv', (req: Request, res: Response) => {
+  if (!checkAdminAuth(req)) {
+    res.status(401).send('Accès refusé. Clé administrateur manquante ou incorrecte.');
+    return;
+  }
   const leads = dbOps.getAllLeads(500);
 
   const escapeCsv = (val: unknown) => {

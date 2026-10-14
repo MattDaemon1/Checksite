@@ -42,7 +42,7 @@ export const AuditProgress: React.FC<AuditProgressProps> = ({
   useEffect(() => {
     let isCancelled = false;
     let pollCount = 0;
-    const maxPolls = 35; // 35 * 1000ms = 35 seconds max wait
+    const maxPolls = 60; // 60 * 1200ms = 72 seconds max wait
 
     const poll = async () => {
       if (isCancelled) return;
