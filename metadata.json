@@ -1,0 +1,8 @@
+{
+  "name": "CheckSite by Matt Konnect",
+  "description": "Audit web gratuit pour artisans et TPE/PME : analysez la performance, le SEO technique et l'état de santé de votre site web en quelques secondes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
